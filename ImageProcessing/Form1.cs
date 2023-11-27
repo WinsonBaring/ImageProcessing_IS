@@ -1,14 +1,10 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using HNUDIP;
+using System;
 using System.ComponentModel;
-using System.Data;
 using System.Drawing;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Windows.Forms;
+using WebCamLib;
 using static System.Net.Mime.MediaTypeNames;
-using static System.Windows.Forms.AxHost;
 
 namespace ImageProcessing
 {
@@ -17,9 +13,16 @@ namespace ImageProcessing
         Bitmap loadImage;
         Bitmap resultImage;
         Bitmap ImageA, ImageB, colorgreen;
+        
+
+        Device[] devices = DeviceManager.GetAllDevices();
+        Device webcam = DeviceManager.GetDevice(0);
+        
+            Timer captureTimer;
         public Form1()
         {
             InitializeComponent();
+            DoubleBuffered = true;
         }
 
         private void openFileDialog1_FileOk(object sender, CancelEventArgs e)
@@ -226,7 +229,9 @@ namespace ImageProcessing
         // Copy Loaded Image
         private void copyToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            resultImage = new Bitmap(loadImage.Width, loadImage.Height);
+            ImageProcess.copyImage(ref loadImage,ref resultImage);
+            pictureBox2.Image = resultImage;
+            /*resultImage = new Bitmap(loadImage.Width, loadImage.Height);
             for (int i = 0; i < resultImage.Width; i++)
             {
                 for (int j = 0; j < resultImage.Height; j++)
@@ -235,7 +240,7 @@ namespace ImageProcessing
                     resultImage.SetPixel(i, j, pixel);
                 }
                 pictureBox2.Image = resultImage;
-            }
+            }*/
         }
 
         // Grey Scale
@@ -258,6 +263,7 @@ namespace ImageProcessing
         // Inversion of Loaded Image
         private void inversionToolStripMenuItem_Click(object sender, EventArgs e)
         {
+
             resultImage = new Bitmap(loadImage.Width, loadImage.Height);
             for (int i = 0; i < resultImage.Width; i++)
             {
@@ -291,6 +297,7 @@ namespace ImageProcessing
         // Histogram
         private void histogramToolStripMenuItem_Click(object sender, EventArgs e)
         {
+
             resultImage = new Bitmap(loadImage.Width, loadImage.Height);
             for (int i = 0; i < loadImage.Width; i++)
                 for (int j = 0; j < loadImage.Height; j++)
@@ -356,17 +363,18 @@ namespace ImageProcessing
 
             openFileDialog4.ShowDialog();
             //ImageB.Width != ImageA.Width || ImageB.Height != ImageA.Height
-            if (ImageB.Width != ImageA.Width || ImageB.Height != ImageA.Height)
+            /*if (ImageB.Width != ImageA.Width || ImageB.Height != ImageA.Height)
             {
                 MessageBox.Show("Error: Image dimensions do not match.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 pictureBox1.Image.Dispose();
                 pictureBox2.Image.Dispose();
                 pictureBox3.Image.Dispose();
+                return;
 
-            }
-            ImageB = new Bitmap(openFileDialog1.FileName);
+            }*/
+                ImageB = new Bitmap(openFileDialog1.FileName);
+                ImageA = new Bitmap(openFileDialog4.FileName);
 
-            ImageA = new Bitmap(openFileDialog4.FileName);
             Color mygreen = Color.FromArgb(0, 0, 255);
             int greygreen = (mygreen.R + mygreen.G + mygreen.B) / 3;
             int threshold = 5;
@@ -390,6 +398,171 @@ namespace ImageProcessing
                     }
                 }
                 pictureBox2.Image = resultImage;
+            }
+        }
+
+        private void cameraToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+          
+        }
+
+        private void Camera_CheckedChanged(object sender, EventArgs e)
+        {
+            if(Camera.Checked == true)
+            {
+                webcam.ShowWindow(pictureBox1);
+            }
+            else
+            {
+                webcam.Stop();
+            }
+        }
+        
+        private void CaptureTimer_Tick(object sender, EventArgs e)
+        {
+            webcam.ShowWindow(pictureBox1);
+            
+        }
+
+
+        // Camera Subtract
+        private void subtractToolStripMenuItem1_Click(object sender, EventArgs e)
+        {
+        }
+
+        //Camera Subtract on
+        private void onToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            captureTimer = new Timer();
+            captureTimer.Interval = 10; 
+            captureTimer.Tick += SubtractTimer_Tick;
+            captureTimer.Start();
+        }
+        private void SubtractTimer_Tick(object sender, EventArgs e)
+        {
+            IDataObject data;
+            System.Drawing.Image bmap;
+            devices[0].Sendmessage();
+            data = Clipboard.GetDataObject();
+
+            int threshold = 100;
+            if (data != null)
+            {
+                bmap = (System.Drawing.Image)(data.GetData("System.Drawing.Bitmap", true));
+                if (bmap != null)
+                {
+                    Bitmap b = new Bitmap(bmap);
+                    ImageProcess2.BitmapFilter.Subtract(b, ImageB, Color.Green, threshold);
+                    pictureBox2.Image = b;
+                }
+            }
+        }
+
+        private void offToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            captureTimer.Enabled = false;
+            captureTimer.Interval = 10;
+            captureTimer.Tick += Copy_tick;
+            captureTimer.Start();
+        }
+
+        private void cameraSettingsToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+
+        }
+        // Load Camera Background
+        private void loadCameraBackgrounToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            openFileDialog4.ShowDialog();
+        }
+
+        // Camera Copy
+        private void copyToolStripMenuItem1_Click(object sender, EventArgs e)
+        {
+
+            captureTimer.Enabled = false;
+            captureTimer = new Timer();
+            captureTimer.Interval = 10;
+            captureTimer.Tick += Copy_tick;
+            captureTimer.Start();
+        }
+        private void Copy_tick(object sender, EventArgs e)
+        {
+            IDataObject data;
+            System.Drawing.Image bmap;
+            devices[0].Sendmessage();
+            data = Clipboard.GetDataObject();
+
+            int threshold = 100;
+            if (data != null)
+            {
+                bmap = (System.Drawing.Image)(data.GetData("System.Drawing.Bitmap", true));
+                if (bmap != null)
+                {
+                    Bitmap b = new Bitmap(bmap);
+                    ImageProcess.copyImage(ref b, ref ImageB);
+                    pictureBox2.Image = b;
+                }
+            }
+        }
+
+        // Camera Inversion
+        private void invertionToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+
+            captureTimer.Enabled = false;
+            captureTimer = new Timer();
+            captureTimer.Interval = 10;
+            captureTimer.Tick += Invertion_tick;
+            captureTimer.Start();
+        }
+        private void Invertion_tick(object sender, EventArgs e)
+        {
+            IDataObject data;
+            System.Drawing.Image bmap;
+            devices[0].Sendmessage();
+            data = Clipboard.GetDataObject();
+
+            int threshold = 100;
+            if (data != null)
+            {
+                bmap = (System.Drawing.Image)(data.GetData("System.Drawing.Bitmap", true));
+                if (bmap != null)
+                {
+                    Bitmap b = new Bitmap(bmap);
+                    ImageProcess2.BitmapFilter.Invert(b);
+                    pictureBox2.Image = b;
+                }
+            }
+        }
+        // Camera GreyScale
+        private void greyScaleToolStripMenuItem1_Click(object sender, EventArgs e)
+        {
+
+            captureTimer.Enabled = false;
+            captureTimer = new Timer();
+            captureTimer.Interval = 10;
+            captureTimer.Tick += GreyScale_tick;
+            captureTimer.Start();
+
+        }
+        private void GreyScale_tick(object sender, EventArgs e)
+        {
+            IDataObject data;
+            System.Drawing.Image bmap;
+            devices[0].Sendmessage();
+            data = Clipboard.GetDataObject();
+
+            int threshold = 100;
+            if (data != null)
+            {
+                bmap = (System.Drawing.Image)(data.GetData("System.Drawing.Bitmap", true));
+                if (bmap != null)
+                {
+                    Bitmap b = new Bitmap(bmap);
+                    ImageProcess2.BitmapFilter.GrayScale(b);
+                    pictureBox2.Image = b;
+                }
             }
         }
 
